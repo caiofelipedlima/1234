@@ -12,7 +12,6 @@
         button { background: #2e7d32; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.3s; }
         button:disabled { background: #ccc; cursor: not-allowed; }
         .btn-group { display: flex; gap: 10px; }
-        .export { background: #1565c0; width: 100%; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background: #2e7d32; color: white; }
@@ -30,11 +29,11 @@
         <div class="row">
             <div class="col" style="flex: 0.5;">
                 <label>SKU / CÓDIGO *</label>
-                <input type="text" id="sku" placeholder="Ex: 42940" required>
+                <input type="text" id="sku" placeholder="Digite o SKU..." required>
             </div>
             <div class="col" style="flex: 1.5;">
                 <label>NOME DO PRODUTO (AUTO) *</label>
-                <input type="text" id="produtoNome" placeholder="Nome aparecerá aqui" required>
+                <input type="text" id="produtoNome" placeholder="O nome aparecerá automaticamente" required>
             </div>
         </div>
 
@@ -111,55 +110,44 @@
 </div>
 
 <script>
-    // ==========================================
-    // 1. CONFIGURAÇÃO: COLE SEU LINK DO GOOGLE AQUI
-    // ==========================================
+    // 1. LINK DA SUA PLANILHA
     const URL_GOOGLE = "https://script.google.com/macros/s/AKfycbzVKD-G1JTNRRmp53Y-RejcLCCS-SXnMBlicqyLgEIKczIfK-oIb5_fs1sf8lnzvU8a/exec";
 
-    // ==========================================
-    // 2. DICIONÁRIO DE PRODUTOS (ADICIONE MAIS AQUI)
-    // ==========================================
+    // 2. SUA LISTA DE PRODUTOS (ADICIONE OS REAIS AQUI)
     const listaProdutos = {
         "42940": "PRODUTO EXEMPLO MILIGRAMA A",
         "10101": "VITAMINA C 500MG CAPS",
         "20202": "OMEGA 3 1000MG",
         "30303": "MAGNÉSIO QUELATO 250MG"
-        // Lembre-se: "CÓDIGO": "NOME", (com vírgula no final)
     };
 
-    // Função para buscar produto pelo SKU
-    document.getElementById('sku').addEventListener('blur', function() {
+    // FUNÇÃO BUSCA AUTOMÁTICA (INSTANTÂNEA)
+    document.getElementById('sku').addEventListener('input', function() {
         const skuDigitado = this.value.trim();
         const campoNome = document.getElementById('produtoNome');
 
         if (listaProdutos[skuDigitado]) {
             campoNome.value = listaProdutos[skuDigitado];
-        } else if (skuDigitado !== "") {
-            campoNome.value = "";
-            alert("AVISO: SKU não cadastrado na lista automática.");
+        } else {
+            campoNome.value = ""; // Limpa se não achar ou estiver digitando
         }
     });
 
-    // ==========================================
-    // 3. FUNÇÃO DE SALVAMENTO (ENVIO PARA SHEETS)
-    // ==========================================
+    // AVISO CASO NÃO EXISTA (SÓ QUANDO SAIR DO CAMPO)
+    document.getElementById('sku').addEventListener('blur', function() {
+        const skuDigitado = this.value.trim();
+        if (skuDigitado !== "" && !listaProdutos[skuDigitado]) {
+            alert("AVISO: Este SKU não está na lista automática. Digite o nome manualmente.");
+        }
+    });
+
+    // FUNÇÃO SALVAR
     async function salvarNaNuvem() {
         const btn = document.getElementById('btnSalvar');
         const loading = document.getElementById('loading');
         
-        // Validação de preenchimento
-        const campos = ['sku', 'produtoNome', 'motivo', 'qtd', 'qtdConfirma', 'unidade', 'lote'];
-        for(let id of campos) {
-            if(!document.getElementById(id).value) {
-                alert("Preencha todos os campos obrigatórios!");
-                document.getElementById(id).focus();
-                return;
-            }
-        }
-
-        // Validação de quantidade
         if(document.getElementById('qtd').value !== document.getElementById('qtdConfirma').value) {
-            alert("As quantidades digitadas não conferem!");
+            alert("As quantidades não conferem!");
             return;
         }
 
@@ -178,51 +166,40 @@
         loading.style.display = "block";
 
         try {
-            // Envia para o Google Sheets
             await fetch(URL_GOOGLE, {
                 method: 'POST',
                 mode: 'no-cors',
                 body: JSON.stringify(registro)
             });
             
-            alert("REGISTRO CONFIRMADO NA NUVEM!");
+            alert("SALVO COM SUCESSO!");
             document.getElementById('perdaForm').reset();
-            carregarHistorico(); // Atualiza a tabela abaixo
+            carregarHistorico();
         } catch (e) {
-            alert("Erro ao conectar com a planilha: " + e);
+            alert("Erro ao salvar: " + e);
         } finally {
             btn.disabled = false;
             loading.style.display = "none";
         }
     }
 
-    // ==========================================
-    // 4. FUNÇÃO PARA CARREGAR O HISTÓRICO
-    // ==========================================
+    // FUNÇÃO CARREGAR HISTÓRICO
     async function carregarHistorico() {
         const tbody = document.querySelector('#tabelaHistorico tbody');
-        
         try {
             const response = await fetch(URL_GOOGLE);
             const dados = await response.json();
-            
             tbody.innerHTML = "";
-            // Ignora o cabeçalho da planilha (linha 1) e inverte para ver os recentes
             dados.slice(1).reverse().slice(0, 10).forEach(linha => {
                 tbody.innerHTML += `<tr>
-                    <td>${linha[0]}</td>
-                    <td>${linha[1]}</td>
-                    <td>${linha[2]}</td>
-                    <td>${linha[4]}</td>
-                    <td>${linha[6]}</td>
+                    <td>${linha[0]}</td><td>${linha[1]}</td><td>${linha[2]}</td><td>${linha[4]}</td><td>${linha[6]}</td>
                 </tr>`;
             });
         } catch (e) {
-            tbody.innerHTML = "<tr><td colspan='5'>Conectado. Clique em atualizar para carregar.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='5'>Pronto para uso.</td></tr>";
         }
     }
 
-    // Carrega a tabela ao abrir a página
     window.onload = carregarHistorico;
 </script>
 
