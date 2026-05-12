@@ -11,7 +11,8 @@
         input, select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #c8e6c9; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
         button { background: #2e7d32; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.3s; }
         button:disabled { background: #ccc; cursor: not-allowed; }
-        .btn-group { display: flex; gap: 10px; }
+        .btn-export { background: #1565c0; margin-bottom: 10px; width: auto; padding: 8px 20px; font-size: 12px; }
+        .btn-export:hover { background: #0d47a1; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background: #2e7d32; color: white; }
@@ -80,15 +81,16 @@
 
         <div id="loading">Enviando para a planilha... aguarde.</div>
         
-        <div class="btn-group">
-            <button type="button" id="btnSalvar" onclick="salvarNaNuvem()">Finalizar e Confirmar</button>
-        </div>
+        <button type="button" id="btnSalvar" onclick="salvarNaNuvem()">Finalizar e Confirmar</button>
     </form>
 
     <div style="margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <h3>Últimos Registros (Nuvem)</h3>
-            <button onclick="carregarHistorico()" style="width: auto; padding: 5px 15px; font-size: 12px;">Atualizar Lista</button>
+            <div>
+                <button class="btn-export" onclick="exportarTabela()">⬇ Exportar Histórico (Excel)</button>
+                <button onclick="carregarHistorico()" style="width: auto; padding: 8px 15px; font-size: 12px; background: #555;">Atualizar Lista</button>
+            </div>
         </div>
         <div style="overflow-x: auto;">
             <table id="tabelaHistorico">
@@ -102,7 +104,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td colspan="5">Clique em atualizar para ver os dados.</td></tr>
+                    <tr><td colspan="5">Aguardando dados...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -110,15 +112,12 @@
 </div>
 
 <script>
-    // 1. LINK DA SUA PLANILHA (MANTENHA O SEU LINK AQUI)
     const URL_GOOGLE = "https://script.google.com/macros/s/AKfycbzVKD-G1JTNRRmp53Y-RejcLCCS-SXnMBlicqyLgEIKczIfK-oIb5_fs1sf8lnzvU8a/exec";
 
-    // FUNÇÃO SALVAR (ENVIO PARA GOOGLE SHEETS)
     async function salvarNaNuvem() {
         const btn = document.getElementById('btnSalvar');
         const loading = document.getElementById('loading');
         
-        // Verifica se as quantidades batem
         if(document.getElementById('qtd').value !== document.getElementById('qtdConfirma').value) {
             alert("As quantidades digitadas não conferem!");
             return;
@@ -156,7 +155,6 @@
         }
     }
 
-    // FUNÇÃO CARREGAR HISTÓRICO (BUSCA DA PLANILHA)
     async function carregarHistorico() {
         const tbody = document.querySelector('#tabelaHistorico tbody');
         try {
@@ -164,8 +162,8 @@
             const dados = await response.json();
             tbody.innerHTML = "";
             
-            // Pega os últimos 10 registros
-            dados.slice(1).reverse().slice(0, 10).forEach(linha => {
+            // Pega os últimos 20 registros para ter dados suficientes para exportar
+            dados.slice(1).reverse().slice(0, 20).forEach(linha => {
                 tbody.innerHTML += `<tr>
                     <td>${linha[0]}</td>
                     <td>${linha[1]}</td>
@@ -175,11 +173,37 @@
                 </tr>`;
             });
         } catch (e) {
-            tbody.innerHTML = "<tr><td colspan='5'>Pronto para uso.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='5'>Conectado. Clique em atualizar.</td></tr>";
         }
     }
 
-    // Carrega o histórico ao abrir a página
+    // FUNÇÃO PARA EXPORTAR CSV
+    function exportarTabela() {
+        const tabela = document.getElementById("tabelaHistorico");
+        let csv = [];
+        const linhas = tabela.querySelectorAll("tr");
+        
+        for (let i = 0; i < linhas.length; i++) {
+            let linha = [];
+            const cols = linhas[i].querySelectorAll("td, th");
+            for (let j = 0; j < cols.length; j++) {
+                // Remove quebras de linha e vírgulas para não estragar o CSV
+                let texto = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, "").replace(/,/g, ";");
+                linha.push(texto);
+            }
+            csv.push(linha.join(","));
+        }
+
+        const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csv.join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "historico_perdas_miligrama.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
     window.onload = carregarHistorico;
 </script>
 
